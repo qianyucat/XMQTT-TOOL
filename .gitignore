@@ -1,0 +1,50 @@
+# ------------------------------------------------------------------
+# 依赖：本机无外网，node_modules 由 tools/assemble-deps.mjs 从本地缓存装配，
+# 里面 250MB 是 Electron 二进制 —— 不入库，需要时重新装配即可。
+# ------------------------------------------------------------------
+node_modules/
+
+# 应用运行时数据。
+# 默认落在 %APPDATA%\XMQTT Tool\；只有显式设置 XMQTT_USER_DATA 指向项目内时才会出现在这里。
+.xmqtt-userdata/
+*.corrupt-*
+
+# 临时产物
+*.tmp
+tmp/
+dist/
+*.log
+
+# 单元测试的 esbuild 产物（tools/unit-test.mjs 每次重建）
+.unit-out/
+
+# 打包产物（electron-builder）
+# release*/ 而非 release/：release/ 里的旧 app.asar 有时会被外部句柄（索引 / 杀软）
+# 占住删不掉，此时用 -c.directories.output=release-win 换个目录出包，别让它进版本库。
+release*/
+
+# 图标产物：源是 tools/make-icon.mjs，dist:* / npm run icon 会先重建，不入库
+build/
+screenshots/icon-512.png
+
+# 图标 / 验收图的过程脚本与中间图（sketch.mjs、color.mjs、verify.py 等），
+# 定稿后结论已写进 tools/make-icon.mjs 与记忆，中间产物不入库
+_build/
+
+# Electron 二进制缓存：受限环境（无法写 ~/Library/Caches）时把 electron_config_cache
+# 指到这里，npm install 才装得上 electron。属于可丢弃的下载缓存，不入库。
+.electron-cache/
+.eb-cache/
+
+# Vite 依赖预打包缓存（构建在 UNC 盘上慢时，vite.config.ts 里可把它指到本地盘）
+.vite-cache/
+
+# 助手工作区：本地记忆与临时分析数据，属于本机状态，不入库
+.workbuddy/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store

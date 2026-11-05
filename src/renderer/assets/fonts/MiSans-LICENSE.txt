@@ -1,0 +1,18 @@
+MiSans 字体授权说明
+====================
+
+来源：小米官方 MiSans 字体页 https://hyperos.mi.com/font/
+      （本目录文件取自官方开发下载包 MiSans.zip，2021-08-09 版）
+
+授权：小米 MiSans 知识产权许可协议 —— 免费商用，全球范围，
+      无需注册或另行授权，允许随软件（含商业软件）内嵌分发；
+      不得单独出售字体文件本身，不得制作衍生字体后声称原创。
+      条款全文见官网页面。
+
+用途：本应用仅作界面显示内嵌使用，未修改字体文件。
+
+随包字重：
+  MiSans-Regular.ttf    400
+  MiSans-Medium.ttf     500
+  MiSans-Demibold.ttf   600
+  MiSans-Bold.ttf       700

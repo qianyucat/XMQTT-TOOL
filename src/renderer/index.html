@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      手机浏览器的默认布局视口是 980px，再整体缩放 —— 那样媒体查询永远看不到
+      「真实屏宽」，390px 的手机也会按桌面档排版然后被压小。
+      这一行是所有响应式规则生效的前提。Electron 里它不产生任何影响。
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';"
+    />
+    <title>XMQTT Tool</title>
+    <link rel="stylesheet" href="styles/app.css" />
+  </head>
+  <body>
+    <div class="app">
+      <!--
+        阶段 4 之后整棵界面都由 React 渲染，这里只剩三个布局槽位。
+        壳子必须写死在 HTML 里：布局是 `.app { grid-template-rows: 40px 1fr }`，
+        槽位得先存在，portal 才有地方挂；同时 `#app-root` 不参与网格，
+        它只负责持有 React 根，避免多包一层 div 把栅格挤歪。
+      -->
+      <header class="titlebar" id="titlebar-root"></header>
+
+      <div class="body">
+        <nav class="rail" id="rail-root"></nav>
+        <main class="content" id="content-root"></main>
+      </div>
+    </div>
+
+    <!-- 提示条：toast 是命令式调用（`toast()` 直接往这里 append），不归 React 管 -->
+    <div class="toasts" id="toasts"></div>
+
+    <!-- React 根节点：只装 portal，本身不参与布局 -->
+    <div id="app-root"></div>
+
+    <!--
+      单一 ES module 入口，必须打成产物后由 `app://` 协议加载 ——
+      file:// 下 module script 会被 Chromium 的 CORS 校验拦掉（origin 为 null）。
+    -->
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

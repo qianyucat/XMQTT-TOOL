@@ -1,0 +1,66 @@
+/* ==================================================================
+   内置字体
+   ------------------------------------------------------------------
+     Inter            拉丁界面 + 数字（SIL OFL 1.1，可变字体）
+     JetBrains Mono   报文 / 代码（SIL OFL 1.1，可变字体）
+     MiSans           中文（小米官方免费商用授权，可随应用分发，
+                      许可说明见 assets/fonts/MiSans-LICENSE.txt；
+                      静态字重包，按用到的 400/500/600/700 各带一档）
+
+   中英文分工：拉丁字符走 Inter（锐利几何），汉字落到 MiSans
+   （x-height 大、小字号清晰）—— 两者的字面高度接近，混排基线不跳。
+
+   Chromium 要点：
+     · 可变字体 font-weight 写区间，浏览器在区间内自由插值
+     · Inter 带 opsz 轴，浏览器按字号自动选 Text / Display 光学档
+     · font-display: swap —— 字体没就绪先用系统栈画，不白屏
+   ================================================================== */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('../assets/fonts/Inter[opsz,wght].ttf') format('truetype-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../assets/fonts/JetBrainsMono[wght].ttf') format('truetype-variations');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* MiSans 是静态字重包：同一 family 下按档声明，各档只管自己的字重 */
+@font-face {
+  font-family: 'MiSans';
+  src: url('../assets/fonts/MiSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MiSans';
+  src: url('../assets/fonts/MiSans-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MiSans';
+  src: url('../assets/fonts/MiSans-Demibold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MiSans';
+  src: url('../assets/fonts/MiSans-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

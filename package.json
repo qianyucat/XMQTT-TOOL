@@ -1,0 +1,161 @@
+{
+  "name": "xmqtt-tool",
+  "version": "1.0.0",
+  "description": "XMQTT Tool - MQTT 订阅/发布调试工具（参考 MQTT.fx，基于 Electron）",
+  "keywords": [
+    "mqtt",
+    "mqtt-client",
+    "mqttfx",
+    "electron",
+    "iot",
+    "debugging",
+    "react",
+    "typescript"
+  ],
+  "main": "dist/main/main.js",
+  "author": "YWY",
+  "license": "AGPL-3.0-only",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qianyucat/XMQTT-TOOL.git"
+  },
+  "homepage": "https://github.com/qianyucat/XMQTT-TOOL#readme",
+  "bugs": {
+    "url": "https://github.com/qianyucat/XMQTT-TOOL/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "node tools/dev.js",
+    "build": "node tools/build-main.mjs && vite build",
+    "build:main": "node tools/build-main.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.test.json --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "start": "node tools/launch.js",
+    "assemble": "node tools/assemble-deps.mjs",
+    "test": "node tools/unit-test.mjs && node tools/test-manager.mjs",
+    "test:e2e": "node tools/e2e-test.mjs",
+    "check:responsive": "node tools/responsive-check.mjs",
+    "smoke": "node tools/smoke-test.mjs",
+    "shots": "node tools/screenshots.mjs",
+    "icon": "node tools/make-icon.mjs",
+    "icons": "node tools/gen-icons.mjs",
+    "headless": "xvfb-run -a node tools/launch.js",
+    "dist:mac": "npm run build && npm run icon && electron-builder --mac",
+    "dist:linux": "npm run build && npm run icon && electron-builder --linux",
+    "dist:win": "node tools/dist-win.mjs",
+    "test:unit": "node tools/unit-test.mjs"
+  },
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.10.8",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.460.0",
+    "mqtt": "5.14.1",
+    "radix-ui": "^1.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sonner": "^1.7.0",
+    "tailwind-merge": "^2.5.4",
+    "zod": "^3.23.8",
+    "zustand": "^4.5.5"
+  },
+  "optionalDependencies": {
+    "electron-liquid-glass": "^1.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "28.3.3",
+    "electron-builder": "^25.1.8",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  },
+  "build": {
+    "appId": "com.xmqtt.tool",
+    "productName": "XMQTT Tool",
+    "copyright": "Copyright © 2026 YWY",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/main/**/*",
+      "dist/preload/**/*",
+      "dist/shared/**/*",
+      "dist/renderer/**/*",
+      "package.json",
+      "!node_modules/{react,react-dom,scheduler,lucide-react,radix-ui,sonner,zustand,zod,clsx,tailwind-merge,class-variance-authority,@tanstack}/**"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "electronDownload": {
+      "cache": ".electron-cache",
+      "mirror": "https://npmmirror.com/mirrors/electron/"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "build/icon.icns",
+      "darkModeSupport": true,
+      "identity": null,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "XMQTT Tool ${version}",
+      "contents": [
+        {
+          "x": 140,
+          "y": 200,
+          "type": "file"
+        },
+        {
+          "x": 400,
+          "y": 200,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Development",
+      "icon": "build/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true
+    }
+  }
+}

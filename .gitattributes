@@ -1,0 +1,17 @@
+# ------------------------------------------------------------------
+# 换行符策略：默认 LF，只给 Windows 脚本留两个例外。
+#
+#   .cmd —— cmd.exe 对 LF-only 的批处理文件有解析缺陷
+#           （括号块 / goto / 标签跳转容易出错），强制 CRLF。
+#   .ps1 —— PowerShell 两种都吃，为与 .cmd 保持一致也给 CRLF。
+#
+# 显式写 `* text=auto eol=lf` 是为了不受 core.autocrlf 影响：
+# 本机默认 autocrlf=true，不声明的话 .gitignore 这类文件也会被转成 CRLF。
+# ------------------------------------------------------------------
+
+* text=auto eol=lf
+
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+*.png binary

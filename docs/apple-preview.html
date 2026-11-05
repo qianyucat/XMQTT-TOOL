@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>XMQTT · Apple 设计语言预演（macOS / iOS）</title>
+<style>
+/* ==================================================================
+   Apple 语义令牌
+   - macOS：窗口 / 内容 / 侧边栏 / 分离线 / 控件填充（Vibrancy 分三层）
+   - iOS：系统背景 / 分组背景 / 卡片 / 分隔线 / 填充（Grouped 三层）
+   ================================================================== */
+html[data-theme='light'] {
+  --accent: #007aff; --accent-press: #0062cc;
+  --green: #34c759; --orange: #ff9500; --red: #ff3b30; --purple: #af52de;
+
+  --mac-window: #ececec;
+  --mac-content: #ffffff;
+  --mac-sidebar: rgba(246,246,246,.74);
+  --mac-toolbar: rgba(246,246,246,.82);
+  --mac-hair: rgba(0,0,0,.11);
+  --mac-hair-soft: rgba(0,0,0,.07);
+  --mac-text: #1d1d1f;
+  --mac-text-2: #6e6e73;
+  --mac-text-3: #86868b;
+  --mac-fill: rgba(0,0,0,.055);
+  --mac-fill-2: rgba(0,0,0,.09);
+  --mac-control: #ffffff;
+  --mac-control-hair: rgba(0,0,0,.13);
+  --mac-sel: rgba(0,122,255,.14);
+  --mac-sel-text: #0062cc;
+  --mac-shadow: 0 0 0 .5px rgba(0,0,0,.16), 0 22px 48px rgba(0,0,0,.26), 0 2px 6px rgba(0,0,0,.1);
+  --mac-elev: 0 .5px 1.5px rgba(0,0,0,.12);
+
+  --ios-bg: #f2f2f7;
+  --ios-card: #ffffff;
+  --ios-sep: rgba(60,60,67,.16);
+  --ios-label: #000000;
+  --ios-label-2: rgba(60,60,67,.6);
+  --ios-label-3: rgba(60,60,67,.3);
+  --ios-fill: rgba(118,118,128,.12);
+  --ios-fill-2: rgba(118,118,128,.2);
+  --ios-bar: rgba(249,249,249,.82);
+  --ios-shadow: 0 1px 0 rgba(0,0,0,.04);
+
+  --lab-bg: #dfe3ea;
+  --lab-panel: #ffffff;
+  --lab-text: #1d1d1f;
+  --lab-text-2: #6e6e73;
+  --lab-hair: rgba(0,0,0,.12);
+}
+
+html[data-theme='dark'] {
+  --accent: #0a84ff; --accent-press: #409cff;
+  --green: #30d158; --orange: #ff9f0a; --red: #ff453a; --purple: #bf5af2;
+
+  --mac-window: #1e1e20;
+  --mac-content: #232326;
+  --mac-sidebar: rgba(42,42,45,.66);
+  --mac-toolbar: rgba(38,38,41,.78);
+  --mac-hair: rgba(255,255,255,.1);
+  --mac-hair-soft: rgba(255,255,255,.06);
+  --mac-text: #f5f5f7;
+  --mac-text-2: #a1a1a6;
+  --mac-text-3: #8a8a8f;
+  --mac-fill: rgba(255,255,255,.07);
+  --mac-fill-2: rgba(255,255,255,.12);
+  --mac-control: #3a3a3d;
+  --mac-control-hair: rgba(255,255,255,.12);
+  --mac-sel: rgba(10,132,255,.26);
+  --mac-sel-text: #ffffff;
+  --mac-shadow: 0 0 0 .5px rgba(255,255,255,.12), 0 26px 60px rgba(0,0,0,.62), 0 2px 8px rgba(0,0,0,.4);
+  --mac-elev: 0 .5px 1.5px rgba(0,0,0,.5);
+
+  --ios-bg: #000000;
+  --ios-card: #1c1c1e;
+  --ios-sep: rgba(84,84,88,.5);
+  --ios-label: #ffffff;
+  --ios-label-2: rgba(235,235,245,.6);
+  --ios-label-3: rgba(235,235,245,.3);
+  --ios-fill: rgba(118,118,128,.24);
+  --ios-fill-2: rgba(118,118,128,.36);
+  --ios-bar: rgba(29,29,31,.8);
+  --ios-shadow: 0 1px 0 rgba(255,255,255,.06);
+
+  --lab-bg: #131317;
+  --lab-panel: #1c1c1f;
+  --lab-text: #f5f5f7;
+  --lab-text-2: #a1a1a6;
+  --lab-hair: rgba(255,255,255,.1);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--lab-bg);
+  color: var(--lab-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -.01em;
+  overflow: hidden;
+}
+
+/* ================= 预演台 ================= */
+.lab { display: flex; flex-direction: column; height: 100%; }
+.labbar {
+  display: flex; align-items: center; gap: 14px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--lab-hair);
+  background: var(--lab-panel);
+  flex: none;
+}
+.labbar__t { font-size: 13px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
+.labbar__t span { color: var(--lab-text-2); font-weight: 400; margin-left: 8px; font-size: 11.5px; }
+.labbar__sp { flex: 1; min-width: 8px; }
+
+@media (max-width: 780px) { .labbar__t span { display: none; } .labelx { display: none; } }
+@media (max-width: 600px) { .labbar__t { display: none; } }
+
+.seg {
+  display: inline-flex; padding: 2px; gap: 2px;
+  background: var(--ios-fill); border-radius: 8px;
+}
+.seg button {
+  border: 0; background: transparent; color: var(--lab-text);
+  font: inherit; font-size: 12px; padding: 4px 12px; border-radius: 6px;
+  cursor: pointer; white-space: nowrap;
+}
+.seg button.is-on {
+  background: var(--lab-panel); font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0,0,0,.16), 0 0 0 .5px rgba(0,0,0,.06);
+}
+[data-theme='dark'] .seg button.is-on { background: #48484c; }
+
+.lab__btn {
+  height: 26px; padding: 0 11px; border-radius: 6px;
+  border: 1px solid var(--lab-hair); background: transparent; color: var(--lab-text);
+  font: inherit; font-size: 12px; cursor: pointer;
+}
+.lab__btn:hover { background: var(--ios-fill); }
+
+.stage {
+  flex: 1; min-height: 0; overflow: auto;
+  display: flex; align-items: center; justify-content: center;
+  padding: 26px;
+}
+.stage::-webkit-scrollbar { width: 10px; height: 10px; }
+.stage::-webkit-scrollbar-thumb { background: var(--lab-hair); border-radius: 6px; }
+.stage::-webkit-scrollbar-track { background: transparent; }
+
+/* 两端外壳里的滚动条：mac 是 overlay（滚动时才出现），iOS 干脆没有 —— 原型里一律藏掉 */
+.mscol__body::-webkit-scrollbar, .iosmain::-webkit-scrollbar { width: 0; height: 0; }
+.view[hidden] { display: none !important; }
+
+/* ==================================================================
+   macOS 窗口
+   ================================================================== */
+.macwin {
+  width: 1180px; height: 730px; flex: none;
+  display: grid; grid-template-columns: 218px minmax(0, 1fr);
+  border-radius: 11px; overflow: hidden;
+  background: var(--mac-window);
+  box-shadow: var(--mac-shadow);
+  position: relative;
+}
+
+/* --- 侧边栏：全高、半透明、红绿灯压在上面 --- */
+.msbar {
+  position: relative;
+  display: flex; flex-direction: column;
+  background: var(--mac-sidebar);
+  backdrop-filter: blur(50px) saturate(180%);
+  -webkit-backdrop-filter: blur(50px) saturate(180%);
+  border-right: 1px solid var(--mac-hair);
+  padding: 0 10px 10px;
+}
+.traffic { display: flex; gap: 8px; padding: 18px 0 0 10px; flex: none; }
+.tl { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(0,0,0,.14); }
+.tl--c { background: #ff5f57; }
+.tl--m { background: #febc2e; }
+.tl--z { background: #28c840; }
+.macwin[data-inactive] .tl { background: var(--mac-fill-2); }
+
+.msbar__title {
+  padding: 14px 6px 8px;
+  font-size: 13px; font-weight: 600; color: var(--mac-text);
+  letter-spacing: -.01em;
+}
+.mssearch {
+  display: flex; align-items: center; gap: 5px;
+  height: 24px; margin: 2px 0 10px; padding: 0 7px;
+  border-radius: 6px; background: var(--mac-fill);
+  color: var(--mac-text-3); font-size: 12px;
+}
+.msgroup {
+  padding: 10px 6px 4px;
+  font-size: 11px; font-weight: 600; color: var(--mac-text-3);
+  letter-spacing: .01em;
+}
+.msrow {
+  display: flex; align-items: center; gap: 8px;
+  height: 28px; padding: 0 8px; margin-bottom: 1px;
+  border: 0; border-radius: 6px; background: transparent;
+  color: var(--mac-text); font: inherit; font-size: 13px;
+  cursor: default; text-align: left; width: 100%;
+  letter-spacing: -.008em;
+}
+.msrow svg { color: var(--mac-text-2); flex: none; }
+.msrow:hover { background: var(--mac-fill); }
+/* 侧边栏选中：macOS 原生是实色 accent + 白字，不是淡蓝底 */
+.msrow.is-sel { background: var(--accent); color: #fff; font-weight: 500; }
+.msrow.is-sel svg { color: #fff; }
+.msrow.is-sel .msrow__count { color: rgba(255,255,255,.82); }
+/* 窗口失焦：选中态退回灰色，红绿灯也变灰 —— 这是 mac 用户辨认焦点的唯一线索 */
+.macwin[data-inactive] .msrow.is-sel { background: var(--mac-fill-2); color: var(--mac-text); }
+.macwin[data-inactive] .msrow.is-sel svg { color: var(--mac-text-2); }
+.macwin[data-inactive] .msrow.is-sel .msrow__count { color: var(--mac-text-3); }
+.msrow__count {
+  margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums;
+  color: var(--mac-text-3);
+}
+.msrow.is-sel .msrow__count { color: var(--accent); }
+.msrow__badge {
+  margin-left: auto; min-width: 17px; height: 15px; padding: 0 4px;
+  border-radius: 7.5px; background: var(--red); color: #fff;
+  font-size: 10px; font-weight: 600; line-height: 15px; text-align: center;
+}
+.msbar__foot { margin-top: auto; padding: 8px 6px 2px; border-top: 1px solid var(--mac-hair-soft); }
+.msserver {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 2px; font-size: 11.5px; color: var(--mac-text-2);
+}
+.msserver b { font-weight: 500; color: var(--mac-text); }
+.msserver span { font-family: 'SF Mono', ui-monospace, Menlo, monospace; font-size: 10.5px; color: var(--mac-text-3); }
+
+/* --- 主区 --- */
+.msmain {
+  display: grid; grid-template-rows: 52px minmax(0, 1fr);
+  background: var(--mac-content); min-width: 0;
+}
+.mstool {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 12px 0 16px;
+  background: var(--mac-toolbar);
+  backdrop-filter: blur(50px) saturate(180%);
+  -webkit-backdrop-filter: blur(50px) saturate(180%);
+  border-bottom: 1px solid var(--mac-hair);
+  -webkit-app-region: drag;
+}
+.mstool > * { -webkit-app-region: no-drag; }
+.mstool__t { font-size: 13px; font-weight: 600; letter-spacing: -.01em; color: var(--mac-text); }
+.mstool__sub { font-size: 11px; color: var(--mac-text-3); margin-left: -4px; }
+
+.mseg {
+  display: inline-flex; padding: 2px; gap: 2px;
+  background: var(--mac-fill); border-radius: 7px;
+}
+.mseg button {
+  border: 0; background: transparent; color: var(--mac-text);
+  font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 5px; cursor: default;
+}
+.mseg button.is-on {
+  background: var(--mac-control); font-weight: 500;
+  box-shadow: var(--mac-elev), 0 0 0 .5px var(--mac-control-hair);
+}
+
+.msbtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  height: 24px; padding: 0 10px;
+  border-radius: 6px; border: 1px solid var(--mac-control-hair);
+  background: var(--mac-control); color: var(--mac-text);
+  font: inherit; font-size: 12px; cursor: default;
+  box-shadow: var(--mac-elev);
+}
+.msbtn:hover { filter: brightness(1.04); }
+.msbtn--primary {
+  background: var(--accent); border-color: transparent; color: #fff; font-weight: 500;
+}
+.msbtn--plain { background: transparent; border-color: transparent; box-shadow: none; color: var(--mac-text-2); }
+
+.msconn {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: var(--mac-text-2); white-space: nowrap;
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.dot--on { background: var(--green); box-shadow: 0 0 0 2.5px rgba(52,199,89,.16); }
+
+.msbody {
+  display: grid; grid-template-columns: 252px minmax(0,1fr) 296px;
+  min-height: 0;
+}
+.mscol { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.mscol + .mscol { border-left: 1px solid var(--mac-hair); }
+.mscol__head {
+  display: flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 10px 0 14px; flex: none;
+  border-bottom: 1px solid var(--mac-hair-soft);
+  font-size: 11px; font-weight: 600; color: var(--mac-text-3);
+}
+.mscol__head .r { margin-left: auto; font-weight: 400; font-variant-numeric: tabular-nums; }
+.mscol__body { flex: 1; min-height: 0; overflow: auto; }
+
+/* 主题树 */
+.mstree { padding: 4px 0 10px; }
+.mstrow {
+  display: flex; align-items: center; gap: 5px;
+  height: 24px; padding: 0 10px 0 12px;
+  font-size: 12.5px; color: var(--mac-text); cursor: default;
+  white-space: nowrap;
+}
+.mstrow:hover { background: var(--mac-fill); }
+.mstrow .n { color: var(--mac-text-3); font-size: 11px; margin-left: auto; font-variant-numeric: tabular-nums; }
+.mstrow.is-sub { color: var(--accent); }
+.mstrow .leaf { width: 5px; height: 5px; border-radius: 50%; background: var(--mac-text-3); flex: none; }
+.mstrow.is-sub .leaf { background: var(--accent); }
+
+/* 消息表 */
+.msmsg__head {
+  display: flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 12px; flex: none;
+  border-bottom: 1px solid var(--mac-hair-soft);
+}
+.msfilter {
+  display: flex; align-items: center; gap: 5px;
+  height: 22px; flex: 1; max-width: 230px; padding: 0 8px;
+  border-radius: 6px; background: var(--mac-fill);
+  color: var(--mac-text-3); font-size: 11.5px;
+}
+.msmsg__meta { font-size: 11px; color: var(--mac-text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.mstable { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.mstable th {
+  position: sticky; top: 0; z-index: 1;
+  height: 22px; padding: 0 10px;
+  background: var(--mac-window);
+  border-bottom: 1px solid var(--mac-hair);
+  color: var(--mac-text-3); font-size: 10.5px; font-weight: 600;
+  text-align: left; letter-spacing: .01em;
+}
+.mstable td {
+  height: 28px; padding: 0 10px;
+  border-bottom: 1px solid var(--mac-hair-soft);
+  font-size: 12px; color: var(--mac-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mstable tr { cursor: default; }
+.mstable tbody tr:hover { background: var(--mac-fill); }
+.mstable tbody tr.is-sel { background: var(--accent); }
+.mstable tbody tr.is-sel td { color: #fff; }
+.mstable tbody tr.is-sel .dim,
+.mstable tbody tr.is-sel .mono { color: rgba(255,255,255,.86); }
+.mstable tbody tr.is-sel .qos { background: rgba(255,255,255,.22); color: #fff; }
+.macwin[data-inactive] .mstable tbody tr.is-sel { background: var(--mac-fill-2); }
+.macwin[data-inactive] .mstable tbody tr.is-sel td,
+.macwin[data-inactive] .mstable tbody tr.is-sel .dim { color: var(--mac-text); }
+.macwin[data-inactive] .mstable tbody tr.is-sel .qos { background: var(--mac-fill); color: var(--mac-text-2); }
+.mono { font-family: 'SF Mono', ui-monospace, Menlo, monospace; font-size: 11px; letter-spacing: 0; }
+.dim { color: var(--mac-text-3); }
+.qos { display: inline-block; min-width: 14px; text-align: center; font-size: 10px;
+  padding: 0 4px; border-radius: 3px; background: var(--mac-fill); color: var(--mac-text-2); }
+
+/* 检查器 */
+.msinsp { background: var(--mac-window); }
+.msinsp__sec { padding: 10px 14px; border-bottom: 1px solid var(--mac-hair-soft); }
+.msinsp__h {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; color: var(--mac-text-3); margin-bottom: 8px;
+}
+.msfield { display: flex; gap: 10px; font-size: 11.5px; line-height: 1.8; }
+.msfield dt { width: 54px; flex: none; color: var(--mac-text-3); }
+.msfield dd { margin: 0; color: var(--mac-text); min-width: 0; word-break: break-all; }
+.mscode {
+  margin: 0; padding: 8px 10px; border-radius: 6px;
+  background: rgba(120,120,128,.1);
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  font-size: 10.5px; line-height: 1.7; color: var(--mac-text);
+  white-space: pre-wrap; word-break: break-all;
+}
+.mscode .k { color: var(--purple); }
+.mscode .s { color: var(--red); }
+.mscode .n { color: var(--accent); }
+
+/* ==================================================================
+   iOS
+   ================================================================== */
+.iphone {
+  width: 390px; height: 800px; flex: none;
+  border-radius: 46px; padding: 10px;
+  background: linear-gradient(160deg, #3a3a3c, #1c1c1e 40%, #2c2c2e);
+  box-shadow: 0 0 0 .5px rgba(255,255,255,.14), 0 30px 70px rgba(0,0,0,.5);
+  position: relative;
+}
+.iphone__screen {
+  position: relative; height: 100%; border-radius: 37px; overflow: hidden;
+  background: var(--ios-bg); color: var(--ios-label);
+  display: grid; grid-template-rows: 54px minmax(0,1fr) auto;
+}
+.iphone__island {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 108px; height: 30px; border-radius: 16px; background: #000; z-index: 20;
+}
+.iosstatus {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 26px 4px; font-size: 14px; font-weight: 600; letter-spacing: -.01em;
+  color: var(--ios-label);
+}
+.iosstatus__r { display: flex; align-items: center; gap: 5px; }
+
+.iosmain { overflow: auto; padding: 0 0 8px; min-height: 0; }
+.iosnav {
+  display: flex; align-items: center;
+  padding: 2px 16px 0;
+}
+.iosnav h1 {
+  margin: 0; font-size: 33px; line-height: 41px; font-weight: 700; letter-spacing: -.02em;
+  flex: 1;
+}
+.ioscircle {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ios-fill); color: var(--accent); border: 0;
+}
+
+.iossf {
+  display: flex; align-items: center; gap: 6px;
+  height: 36px; margin: 10px 16px 0; padding: 0 10px;
+  border-radius: 10px; background: var(--ios-fill);
+  color: var(--ios-label-2); font-size: 17px;
+}
+.iossf span { font-size: 16px; }
+
+.iosseg {
+  display: flex; margin: 14px 16px 0; padding: 2px;
+  background: var(--ios-fill); border-radius: 9px;
+}
+.iosseg div {
+  flex: 1; text-align: center; padding: 5px 0; font-size: 13px; border-radius: 7px;
+}
+.iosseg div.is-on {
+  background: var(--ios-card); font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0,0,0,.12), 0 0 0 .5px rgba(0,0,0,.04);
+}
+[data-theme='dark'] .iosseg div.is-on { background: #636366; }
+
+.iosgroup { margin: 20px 16px 0; }
+.iosgroup__h {
+  font-size: 13px; color: var(--ios-label-2); padding: 0 4px 7px;
+  text-transform: uppercase; letter-spacing: .01em; font-weight: 400;
+}
+.ioscard {
+  background: var(--ios-card); border-radius: 10px; overflow: hidden;
+  box-shadow: 0 1px 0 rgba(0,0,0,.03);
+}
+.iosrow {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 44px; padding: 0 14px; position: relative;
+  font-size: 17px; letter-spacing: -.01em;
+}
+.iosrow + .iosrow::before {
+  content: ''; position: absolute; left: 14px; right: 0; top: 0;
+  height: .5px; background: var(--ios-sep);
+}
+.iosrow__lead { color: var(--accent); display: flex; }
+.iosrow__t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.iosrow__v { color: var(--ios-label-2); font-size: 16px; }
+.iosrow__chev { color: var(--ios-label-3); flex: none; }
+.iosrow.is-sel { background: rgba(0,122,255,.08); }
+[data-theme='dark'] .iosrow.is-sel { background: rgba(10,132,255,.16); }
+.iosrow__badge {
+  min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+  background: var(--red); color: #fff; font-size: 13px; font-weight: 600;
+  line-height: 22px; text-align: center;
+}
+
+.iosswitch {
+  width: 51px; height: 31px; border-radius: 16px; flex: none;
+  background: var(--green); position: relative; transition: background .2s;
+}
+.iosswitch::after {
+  content: ''; position: absolute; top: 2px; right: 2px;
+  width: 27px; height: 27px; border-radius: 50%; background: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,.22), 0 0 0 .5px rgba(0,0,0,.06);
+}
+.iosswitch.is-off { background: var(--ios-fill-2); }
+.iosswitch.is-off::after { right: auto; left: 2px; }
+
+.iostabs {
+  display: flex; padding: 6px 0 0;
+  background: var(--ios-bar);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-top: .5px solid var(--ios-sep);
+  padding-bottom: 22px; position: relative;
+}
+.iostab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  color: var(--ios-label-2); font-size: 10px; letter-spacing: 0;
+}
+.iostab.is-on { color: var(--accent); }
+.iostab__badge {
+  position: absolute; transform: translate(11px, -2px);
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  background: var(--red); color: #fff; font-size: 11px; font-weight: 600;
+  line-height: 16px; text-align: center;
+}
+.ioshome {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  width: 134px; height: 5px; border-radius: 3px; background: var(--ios-label);
+  opacity: .85;
+}
+</style>
+</head>
+<body>
+
+<div class="lab">
+  <header class="labbar">
+    <div class="labbar__t">XMQTT · Apple 设计语言<span>同一份数据，两种原生外壳</span></div>
+
+    <div class="seg" id="platSeg">
+      <button data-plat="mac" class="is-on">macOS</button>
+      <button data-plat="ios">iOS</button>
+    </div>
+
+    <div class="seg" id="themeSeg">
+      <button data-theme="light">浅色</button>
+      <button data-theme="dark" class="is-on">深色</button>
+    </div>
+
+    <div class="labbar__sp"></div>
+    <button class="lab__btn" id="inactiveBtn">窗口失焦态</button>
+  </header>
+
+  <div class="stage">
+
+    <!-- ================= macOS ================= -->
+    <section class="view" id="viewMac">
+      <div class="macwin" id="macwin">
+        <aside class="msbar">
+          <div class="traffic">
+            <i class="tl tl--c"></i><i class="tl tl--m"></i><i class="tl tl--z"></i>
+          </div>
+          <div class="msbar__title">XMQTT Tool</div>
+
+          <div class="mssearch">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            搜索
+          </div>
+
+          <div class="msgroup">工作区</div>
+          <button class="msrow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            发布
+          </button>
+          <button class="msrow is-sel">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4.9 16.1a10 10 0 0 1 0-8.2M19.1 7.9a10 10 0 0 1 0 8.2M7.8 13.2a5 5 0 0 1 0-2.4M16.2 10.8a5 5 0 0 1 0 2.4"/><circle cx="12" cy="12" r="1.6"/></svg>
+            订阅
+            <span class="msrow__count">128</span>
+          </button>
+          <button class="msrow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            状态
+          </button>
+          <button class="msrow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/></svg>
+            日志
+            <span class="msrow__badge">3</span>
+          </button>
+
+          <div class="msgroup">已订阅</div>
+          <button class="msrow"><span class="mono" style="font-size:11px">factory/line1/#</span></button>
+          <button class="msrow"><span class="mono" style="font-size:11px">factory/mes/+</span></button>
+          <button class="msrow"><span class="mono" style="font-size:11px">$SYS/broker/uptime</span></button>
+
+          <div class="msbar__foot">
+            <div class="msserver">
+              <span class="dot dot--on"></span>
+              <b>演示 A</b>
+              <span>broker.example.com:1883</span>
+            </div>
+          </div>
+        </aside>
+
+        <div class="msmain">
+          <header class="mstool">
+            <div class="mstool__t">订阅</div>
+            <div class="mstool__sub">128 个主题</div>
+            <div class="mseg">
+              <button>全部</button>
+              <button class="is-on">已订阅</button>
+              <button>告警</button>
+            </div>
+            <div style="flex:1"></div>
+            <div class="msconn"><span class="dot dot--on"></span>已连接</div>
+            <button class="msbtn">断开</button>
+            <button class="msbtn msbtn--primary">重新扫描</button>
+            <button class="msbtn msbtn--plain" title="更多">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+            </button>
+          </header>
+
+          <div class="msbody">
+            <div class="mscol">
+              <div class="mscol__head">主题<span class="r">128</span></div>
+              <div class="mscol__body mstree">
+                <div class="mstrow" style="padding-left:12px">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg>
+                  factory<span class="n">96</span>
+                </div>
+                <div class="mstrow" style="padding-left:26px">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg>
+                  line1<span class="n">42</span>
+                </div>
+                <div class="mstrow is-sub" style="padding-left:42px"><span class="leaf"></span>temperature</div>
+                <div class="mstrow" style="padding-left:42px"><span class="leaf"></span>pressure</div>
+                <div class="mstrow" style="padding-left:42px"><span class="leaf"></span>speed</div>
+                <div class="mstrow" style="padding-left:42px"><span class="leaf"></span>alarm/code</div>
+                <div class="mstrow" style="padding-left:26px">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg>
+                  line2<span class="n">38</span>
+                </div>
+                <div class="mstrow is-sub" style="padding-left:42px"><span class="leaf"></span>temperature</div>
+                <div class="mstrow" style="padding-left:42px"><span class="leaf"></span>pressure</div>
+                <div class="mstrow" style="padding-left:26px">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg>
+                  gateway<span class="n">16</span>
+                </div>
+                <div class="mstrow" style="padding-left:42px"><span class="leaf"></span>online</div>
+                <div class="mstrow" style="padding-left:42px"><span class="leaf"></span>rssi</div>
+                <div class="mstrow" style="padding-left:26px">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m6 9 6 6 6-6"/></svg>
+                  mes<span class="n">12</span>
+                </div>
+                <div class="mstrow" style="padding-left:42px"><span class="leaf"></span>order</div>
+                <div class="mstrow" style="padding-left:42px"><span class="leaf"></span>heartbeat</div>
+              </div>
+            </div>
+
+            <div class="mscol">
+              <div class="msmsg__head">
+                <div class="msfilter">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                  过滤主题或内容
+                </div>
+                <div class="msmsg__meta">8,921 条 · 312/s</div>
+                <div style="flex:1"></div>
+                <button class="msbtn msbtn--plain" style="height:22px">导出</button>
+              </div>
+              <div class="mscol__body">
+                <table class="mstable">
+                  <thead>
+                    <tr>
+                      <th style="width:76px">时间</th>
+                      <th style="width:38px">QoS</th>
+                      <th style="width:34%">主题</th>
+                      <th>内容</th>
+                    </tr>
+                  </thead>
+                  <tbody id="macRows"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="mscol msinsp">
+              <div class="mscol__head">详情<span class="r">QoS 0</span></div>
+              <div class="mscol__body">
+                <div class="msinsp__sec">
+                  <div class="msinsp__h">报文</div>
+                  <dl style="margin:0">
+                    <div class="msfield"><dt>主题</dt><dd class="mono" style="color:var(--accent)">factory/line1/temperature</dd></div>
+                    <div class="msfield"><dt>时间</dt><dd class="mono">09:41:07.128</dd></div>
+                    <div class="msfield"><dt>长度</dt><dd>86 字节</dd></div>
+                    <div class="msfield"><dt>标志</dt><dd>保留 · 无重发</dd></div>
+                  </dl>
+                </div>
+                <div class="msinsp__sec">
+                  <div class="msinsp__h">载荷
+                    <span style="margin-left:auto;display:inline-flex">
+                      <span class="mseg" style="padding:1px">
+                        <button class="is-on" style="padding:1px 7px;font-size:11px">UTF-8</button>
+                        <button style="padding:1px 7px;font-size:11px">HEX</button>
+                      </span>
+                    </span>
+                  </div>
+                  <pre class="mscode">{
+  <span class="k">"deviceId"</span>: <span class="s">"LINE1-PLC-07"</span>,
+  <span class="k">"ts"</span>: <span class="n">1756089667128</span>,
+  <span class="k">"temp"</span>: <span class="n">62.4</span>,
+  <span class="k">"unit"</span>: <span class="s">"C"</span>,
+  <span class="k">"status"</span>: <span class="s">"RUN"</span>
+}</pre>
+                </div>
+                <div class="msinsp__sec" style="border-bottom:0">
+                  <div class="msinsp__h">操作</div>
+                  <div style="display:flex;gap:6px">
+                    <button class="msbtn" style="flex:1">复制</button>
+                    <button class="msbtn" style="flex:1">用于发布</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= iOS ================= -->
+    <section class="view" id="viewIos" hidden>
+      <div class="iphone">
+        <div class="iphone__island"></div>
+        <div class="iphone__screen">
+          <div class="iosstatus">
+            <span>9:41</span>
+            <span class="iosstatus__r">
+              <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+              <svg width="16" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 18.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Zm0-5.3c-1.9 0-3.6.7-4.9 2l1.7 1.7a4.9 4.9 0 0 1 6.4 0l1.7-1.7a7.2 7.2 0 0 0-4.9-2Zm0-5.2c-3.4 0-6.5 1.3-8.8 3.5l1.7 1.7A10.3 10.3 0 0 1 12 10.3c2.8 0 5.3 1 7.1 2.9l1.7-1.7A12.5 12.5 0 0 0 12 8Z"/></svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="20" height="11" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="1.6" fill="currentColor"/><path d="M22.5 4v4a2.2 2.2 0 0 0 0-4Z" fill="currentColor" opacity=".5"/></svg>
+            </span>
+          </div>
+
+          <div class="iosmain">
+            <div class="iosnav">
+              <h1>订阅</h1>
+              <button class="ioscircle">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
+
+            <div class="iossf">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <span>搜索主题</span>
+            </div>
+
+            <div class="iosseg">
+              <div class="is-on">已订阅</div>
+              <div>全部 128</div>
+              <div>告警 3</div>
+            </div>
+
+            <div class="iosgroup">
+              <div class="iosgroup__h">主题</div>
+              <div class="ioscard">
+                <div class="iosrow is-sel">
+                  <span class="iosrow__lead"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.9 16.1a10 10 0 0 1 0-8.2M19.1 7.9a10 10 0 0 1 0 8.2"/><circle cx="12" cy="12" r="3"/></svg></span>
+                  <span class="iosrow__t mono" style="font-size:15px">factory/line1/#</span>
+                  <span class="iosrow__v">1,284</span>
+                  <span class="iosrow__chev"><svg width="8" height="13" viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m1.5 1.5 5 5-5 5"/></svg></span>
+                </div>
+                <div class="iosrow">
+                  <span class="iosrow__lead"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.9 16.1a10 10 0 0 1 0-8.2M19.1 7.9a10 10 0 0 1 0 8.2"/><circle cx="12" cy="12" r="3"/></svg></span>
+                  <span class="iosrow__t mono" style="font-size:15px">factory/mes/+</span>
+                  <span class="iosrow__v">412</span>
+                  <span class="iosrow__chev"><svg width="8" height="13" viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m1.5 1.5 5 5-5 5"/></svg></span>
+                </div>
+                <div class="iosrow">
+                  <span class="iosrow__lead"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.9 16.1a10 10 0 0 1 0-8.2M19.1 7.9a10 10 0 0 1 0 8.2"/><circle cx="12" cy="12" r="3"/></svg></span>
+                  <span class="iosrow__t mono" style="font-size:15px">$SYS/broker/uptime</span>
+                  <span class="iosrow__v">96</span>
+                  <span class="iosrow__chev"><svg width="8" height="13" viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m1.5 1.5 5 5-5 5"/></svg></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="iosgroup">
+              <div class="iosgroup__h">连接</div>
+              <div class="ioscard">
+                <div class="iosrow">
+                  <span class="iosrow__t">服务器</span>
+                  <span class="iosrow__v">演示 A</span>
+                  <span class="iosrow__chev"><svg width="8" height="13" viewBox="0 0 8 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m1.5 1.5 5 5-5 5"/></svg></span>
+                </div>
+                <div class="iosrow">
+                  <span class="iosrow__t">状态</span>
+                  <span class="iosrow__v" style="color:var(--green);display:flex;align-items:center;gap:5px">
+                    <span class="dot" style="background:var(--green);width:8px;height:8px"></span>已连接
+                  </span>
+                </div>
+                <div class="iosrow">
+                  <span class="iosrow__t">自动滚动</span>
+                  <span class="iosswitch"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="iosgroup">
+              <div class="iosgroup__h">最新消息</div>
+              <div class="ioscard">
+                <div class="iosrow">
+                  <span class="iosrow__t mono" style="font-size:14px;color:var(--accent)">factory/line1/temperature</span>
+                  <span class="iosrow__v mono" style="font-size:13px">62.4</span>
+                </div>
+                <div class="iosrow">
+                  <span class="iosrow__t mono" style="font-size:14px;color:var(--accent)">factory/line1/pressure</span>
+                  <span class="iosrow__v mono" style="font-size:13px">4.82</span>
+                </div>
+                <div class="iosrow">
+                  <span class="iosrow__t mono" style="font-size:14px;color:var(--accent)">factory/line2/temperature</span>
+                  <span class="iosrow__v mono" style="font-size:13px">58.1</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <nav class="iostabs">
+            <div class="iostab">
+              <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+              <span>发布</span>
+            </div>
+            <div class="iostab is-on">
+              <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4.9 16.1a10 10 0 0 1 0-8.2M19.1 7.9a10 10 0 0 1 0 8.2M7.8 13.2a5 5 0 0 1 0-2.4M16.2 10.8a5 5 0 0 1 0 2.4"/><circle cx="12" cy="12" r="1.6"/></svg>
+              <span>订阅</span>
+            </div>
+            <div class="iostab">
+              <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              <span>状态</span>
+            </div>
+            <div class="iostab" style="position:relative">
+              <span class="iostab__badge">3</span>
+              <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/></svg>
+              <span>日志</span>
+            </div>
+          </nav>
+          <div class="ioshome"></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+const SAMPLE = [
+  ['09:41:07','0','factory/line1/temperature','{"temp":62.4,"status":"RUN"}','--'],
+  ['09:41:07','0','factory/line1/pressure','{"bar":4.82}','--'],
+  ['09:41:06','1','factory/line1/alarm/code','{"code":"E1042","level":"warn"}','--'],
+  ['09:41:06','0','factory/line2/temperature','{"temp":58.1,"status":"RUN"}','--'],
+  ['09:41:05','0','factory/gateway/rssi','{"gw":"GW-03","rssi":-67}','--'],
+  ['09:41:05','0','factory/line1/speed','{"rpm":1480}','--'],
+  ['09:41:05','1','factory/mes/order','{"orderNo":"MO-0721","qty":240}','--'],
+  ['09:41:04','0','factory/gateway/online','{"gw":"GW-03","online":true}','--'],
+  ['09:41:04','0','factory/line2/pressure','{"bar":5.01}','--'],
+  ['09:41:03','0','$SYS/broker/uptime','142680 seconds','--'],
+  ['09:41:03','2','factory/line1/alarm/code','{"code":"E1042"}','--'],
+  ['09:41:02','0','factory/line2/speed','{"rpm":1472}','--'],
+  ['09:41:02','0','factory/mes/heartbeat','{"alive":true,"seq":9921}','--'],
+];
+
+document.getElementById('macRows').innerHTML = SAMPLE.map((r, i) => `
+  <tr class="${i === 0 ? 'is-sel' : ''}">
+    <td class="mono dim" style="font-size:10.5px">${r[0]}</td>
+    <td><span class="qos">${r[1]}</span></td>
+    <td class="mono">${r[2]}</td>
+    <td class="dim">${r[3]}</td>
+  </tr>`).join('');
+
+document.querySelectorAll('#macRows tr').forEach(tr => {
+  tr.addEventListener('click', () => {
+    document.querySelectorAll('#macRows tr').forEach(t => t.classList.remove('is-sel'));
+    tr.classList.add('is-sel');
+  });
+});
+
+document.querySelectorAll('#platSeg button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#platSeg button').forEach(x => x.classList.remove('is-on'));
+    b.classList.add('is-on');
+    const mac = b.dataset.plat === 'mac';
+    document.getElementById('viewMac').hidden = !mac;
+    document.getElementById('viewIos').hidden = mac;
+  });
+});
+
+document.querySelectorAll('#themeSeg button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#themeSeg button').forEach(x => x.classList.remove('is-on'));
+    b.classList.add('is-on');
+    document.documentElement.dataset.theme = b.dataset.theme;
+  });
+});
+
+const macwin = document.getElementById('macwin');
+document.getElementById('inactiveBtn').addEventListener('click', () => {
+  macwin.toggleAttribute('data-inactive');
+});
+</script>
+</body>
+</html>
