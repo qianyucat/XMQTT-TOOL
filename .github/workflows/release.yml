@@ -1,0 +1,89 @@
+name: Release
+
+# 触发方式：
+#   1. push 形如 v1.0.0 的标签  → 构建 Windows 安装包并自动发布到 GitHub Release
+#   2. 手动触发（Actions → Release → Run workflow）→ 只构建，产物留在 run 的 Artifacts 里
+#
+# 为什么要走 CI 而不是本机打包：
+#   本机是离线 Windows 机，依赖靠 tools/assemble-deps.mjs 从本地缓存装配；
+#   macOS / Linux 包又只能在对应系统上出。把打包搬到 GitHub runner 后，
+#   任何平台、任何人推个标签就能拿到一份可复现的成品。
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# 发布 Release 需要写权限（默认 GITHUB_TOKEN 只有读）
+permissions:
+  contents: write
+
+env:
+  # 本机 package.json 的 electronDownload.mirror 指向 npmmirror（离线机装依赖用），
+  # GitHub runner 在境外，从官方 release 拉 Electron 快得多，这里用 env 覆盖 npm 侧下载。
+  ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+
+jobs:
+  build-win:
+    name: Windows x64 安装包
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # 用 install 而不是 ci：Windows 离线机的 node_modules 是手工装配的，
+      # package-lock.json 与 package.json 不保证严格同步，ci 会直接报错退出。
+      - name: 安装依赖
+        run: npm install --no-audit --no-fund
+
+      # 标签和 package.json 版本对不上时提前失败，免得发布出 Setup 1.0.0.exe
+      # 挂在 v1.1.0 下面（成品文件名取自 package.json.version）
+      - name: 校验标签与版本号
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          ver="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$ver" ]; then
+            echo "标签 $GITHUB_REF_NAME 与 package.json 的 version($ver) 不一致" >&2
+            exit 1
+          fi
+
+      # dist:win 内含 build(main+renderer) + make-icon + electron-builder --win --x64
+      - name: 打包
+        run: npm run dist:win
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: xmqtt-win-x64
+          path: |
+            release/*.exe
+            release/*.exe.blockmap
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: 发布到 GitHub Release
+    needs: build-win
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+
+      - name: 创建 Release 并附上安装包
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            assets/**/*.exe
+            assets/**/*.exe.blockmap
+          generate_release_notes: true
+          draft: false
+          prerelease: false
