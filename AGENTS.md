@@ -101,6 +101,35 @@ export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
 > 受限环境（沙箱 / CI，无法写 `~/Library/Caches`）装不上 Electron 时：
 > `electron_config_cache="$PWD/.electron-cache" npm install`
 
+## 发布（GitHub Actions）
+
+Windows 正式版已经搬到 CI：`.github/workflows/release.yml`，推 `v*` 标签即在
+`windows-latest` 上打包 NSIS 并自动创建 Release（附 `.exe` + `.blockmap`）。
+
+```bash
+npm version 1.1.0 --no-git-tag-version   # 改 package.json version
+git commit -am "chore: 1.1.0"
+git tag -a v1.1.0 -m "XMQTT Tool 1.1.0"
+git push origin main --follow-tags      # 标签一推，CI 跑完就多一个 Release
+```
+
+Actions 页手动触发（workflow_dispatch）只构建、不发布，产物在 run 的 Artifacts 里。
+
+两条必须知道的：
+
+- **CI 里一定要 `--publish never`（workflow 已带）。** electron-builder 一旦发现当前
+  提交打了标签就自动转发布模式（日志 `artifacts will be published reason=tag is defined`），
+  没有 `GH_TOKEN` 时直接在收尾阶段 `exit 1` —— 安装包其实已经打好了，看起来像构建失败。
+  发布统一交给 workflow 的 `softprops/action-gh-release` 一步。
+  `tools/dist-win.mjs` 现在把 `--out` 之外的参数原样透传给 electron-builder，本地同理。
+- **标签必须等于 `package.json` 的 version。** 成品文件名取自 version，对不上就会出现
+  `Setup 1.0.0.exe` 挂在 `v1.1.0` 下；workflow 里有一步专门校验，不一致会提前失败。
+
+本机（离线 Windows）打包仍然可以照旧 `node tools/dist-win.mjs --out release-r1`，
+但注意这台机器的 safe-delete 垫片会拦住 electron-builder 清理旧的
+`__uninstaller-nsis-*.exe`（`finishBuild` 阶段 unlink 被拒），**同一个输出目录第二次打包会失败**，
+换一个新目录（`--out release-r2`）即可。
+
 ## 硬约束（都踩过）
 
 | 约束 | 平台 | 原因 / 后果 |
