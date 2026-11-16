@@ -47,11 +47,23 @@ const eb = path.join('node_modules', 'electron-builder', 'out', 'cli', 'cli.js')
  * （杀软 / 索引服务持有句柄，重启才放），猜名字就无路可走了，
  * 这时由人指一个干净目录最省事。
  */
+const argv = process.argv.slice(2);
+const outIdx = argv.indexOf('--out');
 const outFlag = (() => {
-  const i = process.argv.indexOf('--out');
-  const v = i > 0 ? process.argv[i + 1] : undefined;
+  const v = outIdx > 0 ? argv[outIdx + 1] : undefined;
   return v && !v.startsWith('-') ? v : null;
 })();
+
+/**
+ * 其余参数原样转给 electron-builder：npm run dist:win -- --publish never
+ * ------------------------------------------------------------------
+ * 主要给 CI 用：electron-builder 只要发现当前提交打了标签，就自动切到发布模式
+ * （日志里 "artifacts will be published reason=tag is defined"），
+ * 随后因为没有 GH_TOKEN 直接 exit 1 —— 哪怕安装包已经打好了。
+ * 本项目发布走 .github/workflows/release.yml 的独立步骤，所以 CI 里必须显式
+ * --publish never。
+ */
+const passthrough = argv.filter((a, i) => i !== outIdx && i !== (outIdx >= 0 ? outIdx + 1 : -1));
 
 /** 清空目录，返回删不掉的路径（空数组 = 清干净）。 */
 function wipe(dir) {
@@ -160,18 +172,18 @@ const unpacked = path.join(outDir, 'win-unpacked');
 
 if (isWindows) {
   // Windows 上 rcedit 可直接运行，走原生流程
-  run('electron-builder --win --x64', node, [eb, '--win', '--x64', ...out.args]);
+  run('electron-builder --win --x64', node, [eb, '--win', '--x64', ...out.args, ...passthrough]);
 } else {
   const noEdit = ['-c.win.signAndEditExecutable=false'];
 
-  run('打包 win-unpacked（跳过 rcedit / wine）', node, [eb, '--win', '--x64', '--dir', ...noEdit, ...out.args]);
+  run('打包 win-unpacked（跳过 rcedit / wine）', node, [eb, '--win', '--x64', '--dir', ...noEdit, ...out.args, ...passthrough]);
   run('写入图标与版本信息', node, [
     path.join('tools', 'patch-win-exe.cjs'),
     path.join(unpacked, `${productName}.exe`),
   ]);
 
-  run('生成 zip', node, [eb, '--win', 'zip', '--x64', '--prepackaged', unpacked, ...noEdit]);
-  run('生成 NSIS 安装包', node, [eb, '--win', 'nsis', '--x64', '--prepackaged', unpacked, ...noEdit]);
+  run('生成 zip', node, [eb, '--win', 'zip', '--x64', '--prepackaged', unpacked, ...noEdit, ...passthrough]);
+  run('生成 NSIS 安装包', node, [eb, '--win', 'nsis', '--x64', '--prepackaged', unpacked, ...noEdit, ...passthrough]);
 }
 
 console.log('\n产物：');

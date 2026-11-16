@@ -55,8 +55,10 @@ jobs:
           fi
 
       # dist:win 内含 build(main+renderer) + make-icon + electron-builder --win --x64
+      # --publish never：electron-builder 见到标签会自动转发布模式，没有 GH_TOKEN 就 exit 1；
+      # 本项目发布交给下面的 Release 步骤，这里只要产物。
       - name: 打包
-        run: npm run dist:win
+        run: npm run dist:win -- --publish never
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
